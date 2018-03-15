@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+import "order.proto";
+import "deal.proto";
+import "insonmnia.proto";
+
+package sonm;
+
+enum ComparisonOperator {
+    EQ = 0;
+    GTE = 1;
+    LTE = 2;
+}
+
+
+service DWH {
+    rpc GetOrdersList(OrdersListRequest) returns (OrdersListReply) {}
+    rpc GetOrderDetails(ID) returns (Order) {}
+    rpc GetDealsList(DealsListRequest) returns (DealsListReply) {}
+    rpc GetDealDetails(ID) returns (Deal) {}
+    rpc GetDealChangeRequests(ID) returns (DealChangeRequestsReply) {}
+}
+
+message OrdersListRequest {
+    OrderType type = 1;
+    string authorID = 2;
+    string counterAgentID = 3;
+    uint64 durationSeconds = 4;
+    ComparisonOperator durationOperator = 5;
+    uint64 price = 6;
+    ComparisonOperator priceOperator = 7;
+    uint64 cpuCount = 8;
+    uint64 gpuCount = 9;
+    uint64 ramBytes = 10;
+    uint64 limit = 11;
+    uint64 offset = 12;
+}
+
+message OrdersListReply {
+    repeated Order orders = 1;
+}
+
+message DealsListRequest {
+    DealStatus status = 3;
+    string supplierID = 1;
+    string consumerID = 2;
+    uint64 durationSeconds = 4;
+    ComparisonOperator durationOperator = 5;
+    uint64 price = 6;
+    ComparisonOperator priceOperator = 7;
+    uint64 limit = 8;
+    uint64 offset = 9;
+}
+
+message DealsListReply {
+    repeated Deal deals = 1;
+}
+
+message DealChangeRequestsReply {
+    repeated DealChangeRequest changeRequests = 1;
+}
+
+message DealChangeRequest {
+    uint64 price = 1;
+    uint64 durationSeconds = 2;
+}

@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "bid.proto";
+import "order.proto";
 import "bigint.proto";
 import "capabilities.proto";
 import "container.proto";

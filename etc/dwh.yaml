@@ -1,0 +1,12 @@
+address: "127.0.0.1:15030"
+
+storage:
+  backend: "sqlite3"
+  endpoint: "target/dwh.db"
+
+# blockchain-specific settings.
+ethereum:
+  # path to keystore
+  key_store: "./keys"
+  # passphrase for keystore
+  pass_phrase: "any"
