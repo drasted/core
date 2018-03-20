@@ -12,48 +12,41 @@ type Matcher interface {
 }
 
 // bidMatcher matches the cheapest order to deal
-type bidMatcher struct{}
+type matcher struct {
+	less func(lhs, rhs *sonm.Order) bool
+}
 
 // NewBidMatcher returns Matcher implementation which
 // matches given BID order with most cheapest ASK.
 func NewBidMatcher() Matcher {
-	return &bidMatcher{}
-}
-
-func (m *bidMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
-	if len(orders) == 0 {
-		return nil, errors.New("no orders provided")
+	return &matcher{
+		less: func(lhs, rhs *sonm.Order) bool {
+			return lhs.PricePerSecond.Cmp(rhs.PricePerSecond) < 0
+		},
 	}
-
-	var min = orders[0]
-	for _, o := range orders {
-		if o.PricePerSecond.Cmp(min.PricePerSecond) < 0 {
-			min = o
-		}
-	}
-
-	return min, nil
 }
-
-type askMatcher struct{}
 
 // NewAskMatcher returns Matcher implementation which
 // matches given ASK order with most expensive BID.
 func NewAskMatcher() Matcher {
-	return &askMatcher{}
+	return &matcher{
+		less: func(lhs, rhs *sonm.Order) bool {
+			return lhs.PricePerSecond.Cmp(rhs.PricePerSecond) > 0
+		},
+	}
 }
 
-func (m *askMatcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
+func (m *matcher) Match(orders []*sonm.Order) (*sonm.Order, error) {
 	if len(orders) == 0 {
 		return nil, errors.New("no orders provided")
 	}
 
-	var max = orders[0]
+	var best = orders[0]
 	for _, o := range orders {
-		if o.PricePerSecond.Cmp(max.PricePerSecond) > 0 {
-			max = o
+		if m.less(o, best) {
+			best = o
 		}
 	}
 
-	return max, nil
+	return best, nil
 }
