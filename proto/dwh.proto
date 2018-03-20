@@ -1,8 +1,9 @@
 syntax = "proto3";
 
-import "order.proto";
+import "bigint.proto";
 import "deal.proto";
 import "insonmnia.proto";
+import "order.proto";
 
 package sonm;
 
@@ -61,6 +62,6 @@ message DealChangeRequestsReply {
 }
 
 message DealChangeRequest {
-    uint64 price = 1;
-    uint64 durationSeconds = 2;
+    uint64 durationSeconds = 1;
+    BigInt price = 2;
 }

@@ -22,7 +22,7 @@ var (
 		startTime			UNSIGNED INTEGER NOT NULL
 	);`
 	createTableChangesSQLite = `
-	CREATE TABLE IF NOT EXISTS changes (
+	CREATE TABLE IF NOT EXISTS change_requests (
 		duration 			UNSIGNED INTEGER NOT NULL,
 		price				BIGINT NOT NULL,
 		deal				BIGINT NOT NULL,

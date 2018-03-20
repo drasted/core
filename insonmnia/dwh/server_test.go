@@ -63,7 +63,7 @@ func TestDWH_GetOrdersList(t *testing.T) {
 	}
 
 	if len(reply.Orders) != 1 {
-		t.Errorf("Expected 1 oreder in reply, got %d", len(reply.Orders))
+		t.Errorf("Expected 1 order in reply, got %d", len(reply.Orders))
 		return
 	}
 
@@ -90,6 +90,22 @@ func TestDWH_GetDealDetails(t *testing.T) {
 	}
 
 	assert.Equal(t, int64(41), reply.StartTime.Seconds)
+}
+
+func TestDWH_GetDealChangeRequests(t *testing.T) {
+	reply, err := w.GetDealChangeRequests(context.Background(), &pb.ID{Id: "4444"})
+
+	if err != nil {
+		t.Error(err)
+		return
+	}
+
+	if len(reply.ChangeRequests) != 2 {
+		t.Errorf("Expected 2 change requests in reply, got %d", len(reply.ChangeRequests))
+		return
+	}
+
+	assert.Equal(t, int64(1234), reply.ChangeRequests[0].DurationSeconds)
 }
 
 func getTestDWH() (*DWH, error) {
@@ -131,6 +147,16 @@ func getTestDWH() (*DWH, error) {
 	}
 
 	_, err = w.db.Exec(`INSERT INTO deals VALUES (4444, 1, "supplier_2", "consumer_2", 200, 400, 41);`)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = w.db.Exec(`INSERT INTO change_requests VALUES (1234, 5678, 4444);`)
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = w.db.Exec(`INSERT INTO change_requests VALUES (2345, 6789, 4444);`)
 	if err != nil {
 		return nil, err
 	}

@@ -128,6 +128,7 @@ func (w *DWH) GetOrdersList(ctx context.Context, request *pb.OrdersListRequest) 
 	if err != nil {
 		return nil, errors.Wrapf(err, "query `%s` failed", query)
 	}
+	defer rows.Close()
 
 	var orders []*pb.Order
 	for rows.Next() {
@@ -167,6 +168,7 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.Order, e
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
 		return nil, errors.Errorf("order `%s` not found", request.Id)
@@ -245,6 +247,7 @@ func (w *DWH) GetDealsList(ctx context.Context, request *pb.DealsListRequest) (*
 	if err != nil {
 		return nil, errors.Wrapf(err, "query `%s` failed", query)
 	}
+	defer rows.Close()
 
 	var deals []*pb.Deal
 	for rows.Next() {
@@ -285,6 +288,7 @@ func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.Deal, err
 	if err != nil {
 		return nil, err
 	}
+	defer rows.Close()
 
 	if ok := rows.Next(); !ok {
 		return nil, errors.Errorf("deal `%s` not found", request.Id)
@@ -316,11 +320,36 @@ func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.Deal, err
 	}, nil
 }
 
-func (w *DWH) GetDealChangeRequests(context.Context, *pb.ID) (*pb.DealChangeRequestsReply, error) {
+func (w *DWH) GetDealChangeRequests(ctx context.Context, request *pb.ID) (*pb.DealChangeRequestsReply, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
 
-	return &pb.DealChangeRequestsReply{}, nil
+	rows, err := w.db.Query("SELECT * FROM change_requests WHERE deal=?", request.Id)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var changeRequests []*pb.DealChangeRequest
+	for rows.Next() {
+		var (
+			duration uint64
+			price    string
+			dealID   string
+		)
+		if err := rows.Scan(&duration, &price, &dealID); err != nil {
+			return nil, err
+		}
+
+		bigPrice := new(big.Int)
+		bigPrice.SetString(price, 10)
+		changeRequests = append(changeRequests, &pb.DealChangeRequest{
+			DurationSeconds: duration,
+			Price:           pb.NewBigInt(bigPrice),
+		})
+	}
+
+	return &pb.DealChangeRequestsReply{ChangeRequests: changeRequests}, nil
 }
 
 func (w *DWH) setupDB() (err error) {
