@@ -28,12 +28,10 @@ func newEmptyState() *stateJSON {
 }
 
 type state struct {
-	mu  sync.Mutex
-	ctx context.Context
-	s   store.Store
-
-	uuid       string
-	benchmarks map[string]*sonm.Benchmark
+	mu   sync.Mutex
+	ctx  context.Context
+	s    store.Store
+	data *stateJSON
 }
 
 func initStorage(p string) (store.Store, error) {
@@ -55,9 +53,10 @@ func NewState(ctx context.Context, config Config) (*state, error) {
 	s := &state{
 		ctx: ctx,
 		s:   stor,
-
-		uuid:       "",
-		benchmarks: make(map[string]*sonm.Benchmark),
+		data: &stateJSON{
+			UUID:       "",
+			Benchmarks: make(map[string]*sonm.Benchmark),
+		},
 	}
 
 	err = s.loadInitial()
@@ -79,20 +78,16 @@ func (s *state) loadInitial() error {
 
 	}
 
-	data := &stateJSON{}
 	if kv != nil {
 		// unmarshal exiting state
-		err = json.Unmarshal(kv.Value, &data)
+		err = json.Unmarshal(kv.Value, &s.data)
 		if err != nil {
 			return err
 		}
 	} else {
 		// create new state (clean start)
-		data = newEmptyState()
+		s.data = newEmptyState()
 	}
-
-	s.uuid = data.UUID
-	s.benchmarks = data.Benchmarks
 
 	err = s.save()
 	if err != nil {
@@ -106,12 +101,7 @@ func (s *state) loadInitial() error {
 //
 // Warn: need no be protected by `s.mu` mutex
 func (s *state) save() error {
-	data := &stateJSON{
-		UUID:       s.uuid,
-		Benchmarks: s.benchmarks,
-	}
-
-	b, err := json.Marshal(data)
+	b, err := json.Marshal(s.data)
 	if err != nil {
 		return err
 	}
@@ -123,14 +113,14 @@ func (s *state) getID() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.uuid
+	return s.data.UUID
 }
 
 func (s *state) setID(v string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.uuid = v
+	s.data.UUID = v
 	return s.save()
 }
 
@@ -138,13 +128,13 @@ func (s *state) getBenchmarkResults() map[string]*sonm.Benchmark {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.benchmarks
+	return s.data.Benchmarks
 }
 
 func (s *state) setBenchmarkResults(v map[string]*sonm.Benchmark) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.benchmarks = v
+	s.data.Benchmarks = v
 	return s.save()
 }
