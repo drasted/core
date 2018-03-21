@@ -432,6 +432,18 @@ func (w *DWH) syncOrdersTS() error {
 	return nil
 }
 
+func (w *DWH) syncDealsTS() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	id, err := w.getLastDealID()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (w *DWH) getLastOrderID() (string, error) {
 	rows, err := w.db.Query("SELECT * FROM orders ORDER BY id DESC LIMIT 1")
 	if err != nil {
@@ -456,18 +468,6 @@ func (w *DWH) getLastOrderID() (string, error) {
 	}
 
 	return id, nil
-}
-
-func (w *DWH) syncDealsTS() error {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-
-	id, err := w.getLastOrderID()
-	if err != nil {
-		return err
-	}
-
-	return nil
 }
 
 func (w *DWH) getLastDealID() (string, error) {
