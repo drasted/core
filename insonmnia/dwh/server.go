@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 
+	"time"
+
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -110,18 +112,16 @@ func (w *DWH) GetOrdersList(ctx context.Context, request *pb.OrdersListRequest) 
 		conditions = append(conditions, fmt.Sprintf("price%s?", getOperator(request.PriceOperator)))
 		values = append(values, request.Price)
 	}
-	// Build WHERE clause.
+	query += " ORDER BY price ASC"
 	if len(conditions) > 1 {
 		query += strings.Join(conditions, " AND ")
 	}
-	// Build limit and offset.
 	if request.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", request.Limit)
 	}
 	if request.Offset > 0 {
 		query += fmt.Sprintf(" OFFSET %d", request.Offset)
 	}
-	// Finalize query.
 	query += ";"
 
 	rows, err := w.db.Query(query, values...)
@@ -164,6 +164,7 @@ func (w *DWH) GetOrdersList(ctx context.Context, request *pb.OrdersListRequest) 
 func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.Order, error) {
 	w.mu.RLock()
 	defer w.mu.RUnlock()
+
 	rows, err := w.db.Query("SELECT * FROM orders WHERE id=?", request.Id)
 	if err != nil {
 		return nil, err
@@ -229,18 +230,16 @@ func (w *DWH) GetDealsList(ctx context.Context, request *pb.DealsListRequest) (*
 		conditions = append(conditions, fmt.Sprintf("price%s?", getOperator(request.PriceOperator)))
 		values = append(values, request.Price)
 	}
-	// Build WHERE clause.
 	if len(conditions) > 1 {
 		query += strings.Join(conditions, " AND ")
 	}
-	// Build limit and offset.
+	query += " ORDER BY price ASC"
 	if request.Limit > 0 {
 		query += fmt.Sprintf(" LIMIT %d", request.Limit)
 	}
 	if request.Offset > 0 {
 		query += fmt.Sprintf(" OFFSET %d", request.Offset)
 	}
-	// Finalize query.
 	query += ";"
 
 	rows, err := w.db.Query(query, values...)
@@ -391,4 +390,109 @@ func (w *DWH) setupSQLite() (*sql.DB, error) {
 	}
 
 	return db, nil
+}
+
+func (w *DWH) monitor() error {
+	w.logger.Info("starting initial sync")
+	if err := w.sync(); err != nil {
+		return err
+	}
+
+	tk := time.NewTicker(time.Second)
+	for {
+		select {
+		case <-tk.C:
+			if err := w.sync(); err != nil {
+				w.logger.Error("failed to sync", zap.Error(err))
+			}
+		case <-w.ctx.Done():
+			w.logger.Info("stop blockchain monitoring")
+			return nil
+		}
+	}
+}
+
+func (w *DWH) sync() error {
+	if err := w.syncOrdersTS(); err != nil {
+		return err
+	}
+
+	return w.syncDealsTS()
+}
+
+func (w *DWH) syncOrdersTS() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	id, err := w.getLastOrderID()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *DWH) getLastOrderID() (string, error) {
+	rows, err := w.db.Query("SELECT * FROM orders ORDER BY id DESC LIMIT 1")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	if ok := rows.Next(); !ok {
+		return "", errors.New("no entries found")
+	}
+
+	var (
+		id           string
+		orderType    uint64
+		author       string
+		counterAgent string
+		duration     uint64
+		price        string
+	)
+	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price); err != nil {
+		return "", err
+	}
+
+	return id, nil
+}
+
+func (w *DWH) syncDealsTS() error {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	id, err := w.getLastOrderID()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (w *DWH) getLastDealID() (string, error) {
+	rows, err := w.db.Query("SELECT * FROM deals ORDER BY id DESC LIMIT 1")
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+
+	if ok := rows.Next(); !ok {
+		return "", errors.New("no entries found")
+	}
+
+	var (
+		id        string
+		status    uint64
+		supplier  string
+		consumer  string
+		duration  uint64
+		price     string
+		startTime int64
+	)
+	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime); err != nil {
+		return nil, err
+	}
+
+	return id, nil
 }

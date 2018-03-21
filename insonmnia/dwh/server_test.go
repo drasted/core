@@ -105,7 +105,7 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, int64(1234), reply.ChangeRequests[0].DurationSeconds)
+	assert.Equal(t, uint64(1234), reply.ChangeRequests[0].DurationSeconds)
 }
 
 func getTestDWH() (*DWH, error) {
