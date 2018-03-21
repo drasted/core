@@ -10,17 +10,20 @@ import (
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
 	"github.com/pborman/uuid"
+	"github.com/sonm-io/core/proto"
 )
 
 const stateKey = "state"
 
 type stateJSON struct {
-	UUID string `json:"uuid"`
+	UUID       string                     `json:"uuid"`
+	Benchmarks map[string]*sonm.Benchmark `json:"benchmarks"`
 }
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		UUID: uuid.New(),
+		UUID:       uuid.New(),
+		Benchmarks: map[string]*sonm.Benchmark{},
 	}
 }
 
@@ -29,7 +32,8 @@ type state struct {
 	ctx context.Context
 	s   store.Store
 
-	uuid string
+	uuid       string
+	benchmarks map[string]*sonm.Benchmark
 }
 
 func initStorage(p string) (store.Store, error) {
@@ -48,7 +52,14 @@ func NewState(ctx context.Context, config Config) (*state, error) {
 		return nil, err
 	}
 
-	s := &state{ctx: ctx, s: stor}
+	s := &state{
+		ctx: ctx,
+		s:   stor,
+
+		uuid:       "",
+		benchmarks: make(map[string]*sonm.Benchmark),
+	}
+
 	err = s.loadInitial()
 	if err != nil {
 		return nil, err
@@ -81,6 +92,7 @@ func (s *state) loadInitial() error {
 	}
 
 	s.uuid = data.UUID
+	s.benchmarks = data.Benchmarks
 
 	err = s.save()
 	if err != nil {
@@ -95,7 +107,8 @@ func (s *state) loadInitial() error {
 // Warn: need no be protected by `s.mu` mutex
 func (s *state) save() error {
 	data := &stateJSON{
-		UUID: s.uuid,
+		UUID:       s.uuid,
+		Benchmarks: s.benchmarks,
 	}
 
 	b, err := json.Marshal(data)
@@ -118,5 +131,20 @@ func (s *state) setID(v string) error {
 	defer s.mu.Unlock()
 
 	s.uuid = v
+	return s.save()
+}
+
+func (s *state) getBenchmarkResults() map[string]*sonm.Benchmark {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.benchmarks
+}
+
+func (s *state) setBenchmarkResults(v map[string]*sonm.Benchmark) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.benchmarks = v
 	return s.save()
 }

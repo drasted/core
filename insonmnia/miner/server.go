@@ -15,6 +15,8 @@ import (
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/miner/volume"
@@ -66,6 +68,7 @@ type Miner struct {
 	cGroupManager  cGroupManager
 	ssh            SSH
 	state          *state
+	benchmarkList  benchmarks.BenchList
 }
 
 func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
@@ -88,6 +91,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	if o.hardware == nil {
 		o.hardware = hardware.New()
+	}
+
+	if o.benchList == nil {
+		// todo: replace this shit with some benchmark impl.
+		o.benchList = benchmarks.NewDumbBenchmarks()
 	}
 
 	hardwareInfo, err := o.hardware.Info()
@@ -160,6 +168,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		cGroupManager: cGroupManager,
 		ssh:           o.ssh,
 		state:         state,
+		benchmarkList: o.benchList,
 	}
 
 	return m, nil
@@ -722,9 +731,52 @@ func (m *Miner) TaskDetails(ctx context.Context, req *pb.ID) (*pb.TaskStatusRepl
 
 	return reply, nil
 }
-
 func (m *Miner) RunSSH() error {
 	return m.ssh.Run()
+}
+
+func (m *Miner) doBenchmarking() error {
+	exitingBenches := m.state.getBenchmarkResults()
+	requiredBenches, err := m.benchmarkList.List()
+	if err != nil {
+		log.G(m.ctx).Warn("")
+		return err
+	}
+
+	isMatched := m.isBenchmarkListMatches(requiredBenches, exitingBenches)
+	if isMatched {
+		log.G(m.ctx).Debug("benchmarks list is matched, skit benchmarking this worker")
+		return nil
+	}
+
+	for _, bench := range requiredBenches {
+		result, err := m.runSingleBenchmark(bench)
+		if err != nil {
+			return err
+		}
+
+		log.G(m.ctx).Debug("saving benchmark results",
+			zap.Uint64("result", result),
+			zap.String("bench_id", bench.GetID()))
+		bench.Result = result
+	}
+
+	return m.state.setBenchmarkResults(requiredBenches)
+}
+
+func (m *Miner) isBenchmarkListMatches(required, exiting map[string]*pb.Benchmark) bool {
+	for id := range required {
+		if _, ok := exiting[id]; !ok {
+			return false
+		}
+	}
+
+	return true
+}
+
+func (m *Miner) runSingleBenchmark(bench *pb.Benchmark) (uint64, error) {
+	log.G(m.ctx).Debug("starting benchmark", zap.Any("bench", bench))
+	return 1488, nil
 }
 
 // Close disposes all resources related to the Miner

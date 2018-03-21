@@ -6,6 +6,7 @@ import (
 	"github.com/ccding/go-stun/stun"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
@@ -19,6 +20,7 @@ type options struct {
 	ssh       SSH
 	key       *ecdsa.PrivateKey
 	publicIPs []string
+	benchList benchmarks.BenchList
 }
 
 func (o *options) setupNetworkOptions(cfg Config) error {
@@ -106,6 +108,13 @@ func WithKey(key *ecdsa.PrivateKey) Option {
 	return func(opts *options) {
 		opts.key = key
 	}
+}
+
+func WithBenchmarkList(list benchmarks.BenchList) Option {
+	return func(opts *options) {
+		opts.benchList = list
+	}
+
 }
 
 func makeCgroupManager(cfg *ResourcesConfig) (cGroup, cGroupManager, error) {
