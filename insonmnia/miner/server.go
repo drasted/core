@@ -744,7 +744,22 @@ func (m *Miner) RunSSH() error {
 	store:
 		devID -> benchResult
 */
-func (m *Miner) doBenchmarking() error {
+
+// buildDeviceMap analyzes Worker's hardware capabilities, split available hardware units into groups.
+// Each HW group (CPUs, GPUs, RAM, etc) contain device units that must be measured by the benchmark suite.
+//
+// Device mapping must be built each time when benchmarking is scheduled to be performed.
+// If device mapping is different from cached one - seems like some devices where changed on the host system,
+// and the whole Host's performance must be re-measured again.
+//
+// TODO: returning data type is wild scary shit.
+func (m *Miner) buildDeviceMap() map[string][]string {
+	// Warn(sshaman1101): I have no idea how to correctly group hardware
+	return make(map[string][]string)
+}
+
+// RunBenchmarks perform benchmarking of Worker's resources.
+func (m *Miner) RunBenchmarks() error {
 	exitingBenches := m.state.getBenchmarkResults()
 	requiredBenches, err := m.benchmarkList.List()
 	if err != nil {
@@ -773,6 +788,7 @@ func (m *Miner) doBenchmarking() error {
 	return m.state.setBenchmarkResults(requiredBenches)
 }
 
+// isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
 func (m *Miner) isBenchmarkListMatches(required, exiting map[string]*pb.Benchmark) bool {
 	for id := range required {
 		if _, ok := exiting[id]; !ok {
@@ -783,6 +799,7 @@ func (m *Miner) isBenchmarkListMatches(required, exiting map[string]*pb.Benchmar
 	return true
 }
 
+// runSingleBenchmark executes single benchmark from suite.
 func (m *Miner) runSingleBenchmark(bench *pb.Benchmark) (uint64, error) {
 	log.G(m.ctx).Info("starting benchmark", zap.Any("bench", bench))
 
