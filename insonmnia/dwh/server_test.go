@@ -108,6 +108,12 @@ func TestDWH_GetDealChangeRequests(t *testing.T) {
 	assert.Equal(t, uint64(1234), reply.ChangeRequests[0].DurationSeconds)
 }
 
+func TestDWH_syncOrders(t *testing.T) {
+	if err := w.syncOrdersTS(); err != nil {
+		t.Error(err)
+	}
+}
+
 func getTestDWH() (*DWH, error) {
 	var (
 		ctx = context.Background()

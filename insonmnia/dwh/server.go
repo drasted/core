@@ -12,6 +12,8 @@ import (
 
 	"time"
 
+	"encoding/json"
+
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
 	log "github.com/noxiouz/zapctx/ctxlog"
@@ -425,80 +427,110 @@ func (w *DWH) sync() error {
 }
 
 func (w *DWH) syncOrdersTS() error {
+	var (
+		ctx              = context.Background()
+		knownOrders, err = w.GetOrdersList(ctx, &pb.OrdersListRequest{})
+	)
+	if err != nil {
+		return err
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	//id, err := w.getLastOrderID()
-	//if err != nil {
-	//	return err
-	//}
+	// Delete stale orders.
+	for _, order := range knownOrders.Orders {
+		var isActive bool
+		if !isActive {
+			rows, err := w.db.Query("DELETE FROM orders WHERE id=?", order.Id)
+			if err != nil {
+				return err
+			}
+
+			var numDeleted int
+			for rows.Next() {
+				numDeleted++
+			}
+			w.logger.Info("numDeleted inactive orders", zap.Int("num_deleted", numDeleted))
+		}
+	}
+	// Load new orders.
+	//var lastKnownID = knownOrders.Orders[len(knownOrders.Orders)-1]
+
+	// Write new orders.
+	var orders []*pb.Order
+	for _, order := range orders {
+		benchBlob, err := json.Marshal(order.Slot.Benchmarks)
+		if err != nil {
+			return err
+		}
+		_, err = w.db.Exec(`INSERT INTO orders VALUES (?, ?, ?, ?, ?, ?, ?);`,
+			order.Id,
+			order.OrderType,
+			order.SupplierID,
+			order.ByuerID,
+			order.Slot.Duration,
+			order.PricePerSecond,
+			benchBlob)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func (w *DWH) syncDealsTS() error {
+	var (
+		ctx             = context.Background()
+		knownDeals, err = w.GetDealsList(ctx, &pb.DealsListRequest{})
+	)
+	if err != nil {
+		return err
+	}
+
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	//id, err := w.getLastDealID()
-	//if err != nil {
-	//	return err
-	//}
+	// Delete stale deals.
+	for _, order := range knownDeals.Deals {
+		var isActive bool
+		if !isActive {
+			rows, err := w.db.Query("DELETE FROM deals WHERE id=?", order.Id)
+			if err != nil {
+				return err
+			}
+
+			var numDeleted int
+			for rows.Next() {
+				numDeleted++
+			}
+			w.logger.Info("deleted inactive deals", zap.Int("num_deleted", numDeleted))
+		}
+	}
+	// Load new deals.
+	//var lastKnownID = knownDeals.Deals[len(knownDeals.Deals)-1]
+
+	// Write new deals.
+	var deals []*pb.Deal
+	for _, deal := range deals {
+		benchBlob, err := json.Marshal(deal.Benchmarks)
+		if err != nil {
+			return err
+		}
+		_, err = w.db.Exec(`INSERT INTO deals VALUES (?, ?, ?, ?, ?, ?, ?, ?);`,
+			deal.Id,
+			deal.Status,
+			deal.SupplierID,
+			deal.BuyerID,
+			deal.WorkTime,
+			deal.Price,
+			deal.StartTime,
+			benchBlob)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
-}
-
-func (w *DWH) getLastOrderID() (string, error) {
-	rows, err := w.db.Query("SELECT * FROM orders ORDER BY id DESC LIMIT 1")
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	if ok := rows.Next(); !ok {
-		return "", errors.New("no entries found")
-	}
-
-	var (
-		id           string
-		orderType    uint64
-		author       string
-		counterAgent string
-		duration     uint64
-		price        string
-		benchBytes   []byte
-	)
-	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price, &benchBytes); err != nil {
-		return "", err
-	}
-
-	return id, nil
-}
-
-func (w *DWH) getLastDealID() (string, error) {
-	rows, err := w.db.Query("SELECT * FROM deals ORDER BY id DESC LIMIT 1")
-	if err != nil {
-		return "", err
-	}
-	defer rows.Close()
-
-	if ok := rows.Next(); !ok {
-		return "", errors.New("no entries found")
-	}
-
-	var (
-		id         string
-		status     uint64
-		supplier   string
-		consumer   string
-		duration   uint64
-		price      string
-		startTime  int64
-		benchBytes []byte
-	)
-	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime, &benchBytes); err != nil {
-		return "", err
-	}
-
-	return id, nil
 }

@@ -50,6 +50,7 @@ message Slot {
     Resources resources = 4;
     // Duration is resource rent duration in seconds
     uint64 duration = 5;
+    repeated uint64 benchmarks = 6;
 }
 
 message Order {
