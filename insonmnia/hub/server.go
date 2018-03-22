@@ -281,7 +281,16 @@ func (h *Hub) Serve() error {
 		return err
 	}
 
-	grpcL, err := npp.NewListener(h.ctx, h.cfg.Endpoint, npp.WithRendezvous(rendezvousEndpoints, h.creds), npp.WithLogger(log.G(h.ctx)))
+	a, err := net.ResolveTCPAddr("tcp", "127.0.0.2:12240")
+	if err != nil {
+		return err
+	}
+
+	grpcL, err := npp.NewListener(h.ctx, h.cfg.Endpoint,
+		npp.WithRendezvous(rendezvousEndpoints, h.creds),
+		npp.WithRelay([]net.Addr{a}, h.ethKey),
+		npp.WithLogger(log.G(h.ctx)),
+	)
 	if err != nil {
 		log.G(h.ctx).Error("failed to listen", zap.String("address", h.cfg.Endpoint), zap.Error(err))
 		return err

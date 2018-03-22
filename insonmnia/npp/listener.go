@@ -53,6 +53,8 @@ type Listener struct {
 	puncherNew func() (NATPuncher, error)
 	nppChannel chan connTuple
 
+	relayNew func() (net.Conn, error)
+
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
 }
@@ -82,8 +84,10 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		listenerChannel: channel,
 		listener:        listener,
 		puncher:         opts.puncher,
-		puncherNew:      opts.puncherNew,
-		nppChannel:      make(chan connTuple, opts.nppBacklog),
+		//puncherNew:      opts.puncherNew,
+		nppChannel: make(chan connTuple, opts.nppBacklog),
+
+		relayNew: opts.relayNew,
 
 		minBackoffInterval: 500 * time.Millisecond,
 		maxBackoffInterval: 8000 * time.Millisecond,
@@ -155,6 +159,16 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 // punching mechanism work. This can consume a meaningful amount of file
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
+	if m.relayNew != nil {
+		conn, err := m.relayNew()
+		if err != nil {
+			m.log.Warn("failed to relay", zap.Error(err))
+			panic("fuck")
+		}
+
+		return conn, err
+	}
+
 	// Act as a listener if there is no puncher specified.
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {

@@ -13,7 +13,7 @@ endpoint: ":15010"
 npp:
   rendezvous:
     endpoints:
-      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@138.68.189.138:14099
+      - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@127.0.0.1:14099
   relay:
     endpoints:
       - 0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD@138.68.189.138:14099
@@ -36,7 +36,7 @@ cluster:
     type: "boltdb"
 
     # storage specific endpoint. Directory for boltdb, tcp endpoint for other types
-    endpoint: "/var/lib/sonm/boltdb"
+    endpoint: "/tmp/var/lib/sonm/boltdb"
 
     # Storage bucket to store all data in
     bucket: "sonm"

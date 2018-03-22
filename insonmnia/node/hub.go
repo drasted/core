@@ -4,11 +4,14 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"reflect"
 	"strings"
 	"time"
 
+	"github.com/ethereum/go-ethereum/common"
 	log "github.com/noxiouz/zapctx/ctxlog"
+	"github.com/sonm-io/core/insonmnia/npp/relay"
 	pb "github.com/sonm-io/core/proto"
 	"github.com/sonm-io/core/util"
 	"github.com/sonm-io/core/util/xgrpc"
@@ -23,8 +26,21 @@ type hubAPI struct {
 }
 
 func (h *hubAPI) getClient() (pb.HubClient, io.Closer, error) {
-	cc, err := xgrpc.NewClient(h.ctx, h.remotes.conf.HubEndpoint(), h.remotes.creds,
-		grpc.WithBlock(), grpc.WithTimeout(15*time.Second))
+	log.S(h.ctx).Infof("resolve RELAY")
+	addr, err := net.ResolveTCPAddr("tcp", "127.0.0.2:12240")
+	if err != nil {
+		return nil, nil, err
+	}
+
+	log.S(h.ctx).Infof("dial RELAY")
+	conn, err := relay.Dial(addr, common.HexToAddress("0x8125721C2413d99a33E351e1F6Bb4e56b6b633FD"), "")
+
+	log.S(h.ctx).Infof("dial RELAY finished: %s", conn.RemoteAddr())
+	cc, err := xgrpc.NewClient(h.ctx, "", h.remotes.creds,
+		grpc.WithBlock(),
+		grpc.WithTimeout(15*time.Second),
+		xgrpc.WithConn(conn),
+	)
 	if err != nil {
 		return nil, nil, err
 	}
