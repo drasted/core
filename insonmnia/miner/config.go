@@ -49,7 +49,8 @@ type DevConfig struct {
 }
 
 type storeConfig struct {
-	Path string `required:"true" yaml:"path" default:"/var/lib/sonm/worker.boltdb"`
+	Path   string `required:"true" yaml:"path" default:"/var/lib/sonm/worker.boltdb"`
+	Bucket string `required:"true" yaml:"bucket" default:"sonm"`
 }
 
 type config struct {
@@ -118,7 +119,11 @@ func (c *config) Dev() *DevConfig {
 	return c.DevConfig
 }
 
-func (c *config) Store() string {
+func (c *config) StorePath() string {
+	return c.StoreConfig.Path
+}
+
+func (c *config) StoreBucket() string {
 	return c.StoreConfig.Path
 }
 
@@ -178,8 +183,10 @@ type Config interface {
 	PublicIPs() []string
 	// SSH returns settings for built-in ssh server
 	SSH() *SSHConfig
-	// Store returns path to boltdb which keeps Worker's state.
-	Store() string
+	// StorePath returns path to boltdb which keeps Worker's state.
+	StorePath() string
+	// StoreBucket returns boltdb data-bucket name.
+	StoreBucket() string
 	// ETH returns ethereum configuration
 	ETH() *accounts.EthConfig
 	// LocatorEndpoint returns locator endpoint.

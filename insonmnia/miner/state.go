@@ -9,20 +9,17 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/pborman/uuid"
 	"github.com/sonm-io/core/proto"
 )
 
 const stateKey = "state"
 
 type stateJSON struct {
-	UUID       string                     `json:"uuid"`
 	Benchmarks map[string]*sonm.Benchmark `json:"benchmarks"`
 }
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		UUID:       uuid.New(),
 		Benchmarks: map[string]*sonm.Benchmark{},
 	}
 }
@@ -30,31 +27,30 @@ func newEmptyState() *stateJSON {
 type state struct {
 	mu   sync.Mutex
 	ctx  context.Context
-	s    store.Store
+	db   store.Store
 	data *stateJSON
 }
 
-func initStorage(p string) (store.Store, error) {
+func initStorage(path, bucket string) (store.Store, error) {
 	boltdb.Register()
 	config := store.Config{
-		Bucket: "sonm",
+		Bucket: bucket,
 	}
 
-	return libkv.NewStore(store.BOLTDB, []string{p}, &config)
+	return libkv.NewStore(store.BOLTDB, []string{path}, &config)
 }
 
 // NewState returns state storage that uses boltdb as backend
 func NewState(ctx context.Context, config Config) (*state, error) {
-	stor, err := initStorage(config.Store())
+	stor, err := initStorage(config.StorePath(), config.StoreBucket())
 	if err != nil {
 		return nil, err
 	}
 
 	s := &state{
 		ctx: ctx,
-		s:   stor,
+		db:  stor,
 		data: &stateJSON{
-			UUID:       "",
 			Benchmarks: make(map[string]*sonm.Benchmark),
 		},
 	}
@@ -72,10 +68,9 @@ func (s *state) loadInitial() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	kv, err := s.s.Get(stateKey)
+	kv, err := s.db.Get(stateKey)
 	if err != nil && err != store.ErrKeyNotFound {
 		return err
-
 	}
 
 	if kv != nil {
@@ -106,22 +101,7 @@ func (s *state) save() error {
 		return err
 	}
 
-	return s.s.Put(stateKey, b, &store.WriteOptions{})
-}
-
-func (s *state) getID() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	return s.data.UUID
-}
-
-func (s *state) setID(v string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	s.data.UUID = v
-	return s.save()
+	return s.db.Put(stateKey, b, &store.WriteOptions{})
 }
 
 func (s *state) getBenchmarkResults() map[string]*sonm.Benchmark {
