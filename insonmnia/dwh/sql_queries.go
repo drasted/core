@@ -9,7 +9,8 @@ var (
 		author				TEXT NOT NULL,
 		counter_agent 		TEXT NOT NULL,
 		duration 			UNSIGNED INTEGER NOT NULL,
-		price				BIGINT NOT NULL
+		price				BIGINT NOT NULL,
+		benchmarks			BLOB NOT NULL
 	);`
 	createTableDealsSQLite = `
 	CREATE TABLE IF NOT EXISTS deals (
@@ -19,7 +20,8 @@ var (
 		consumer 			TEXT NOT NULL,
 		duration 			UNSIGNED INTEGER NOT NULL,
 		price				BIGINT NOT NULL,
-		startTime			UNSIGNED INTEGER NOT NULL
+		startTime			UNSIGNED INTEGER NOT NULL,
+		benchmarks			BLOB NOT NULL
 	);`
 	createTableChangesSQLite = `
 	CREATE TABLE IF NOT EXISTS change_requests (

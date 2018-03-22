@@ -45,7 +45,7 @@ func TestDWH_GetOrdersList(t *testing.T) {
 	}
 
 	if len(reply.Orders) != 1 {
-		t.Errorf("Expected 1 oreder in reply, got %d", len(reply.Orders))
+		t.Errorf("Expected 1 order in reply, got %d", len(reply.Orders))
 		return
 	}
 
@@ -131,22 +131,22 @@ func getTestDWH() (*DWH, error) {
 		return nil, err
 	}
 
-	_, err := w.db.Exec(`INSERT INTO orders VALUES (1111, 1, "author_1", "counter_agent_1", 100, 200);`)
+	_, err := w.db.Exec(`INSERT INTO orders VALUES (1111, 1, "author_1", "counter_agent_1", 100, 200, "");`)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = w.db.Exec(`INSERT INTO orders VALUES (2222, 1, "author_2", "counter_agent_2", 200, 400);`)
+	_, err = w.db.Exec(`INSERT INTO orders VALUES (2222, 1, "author_2", "counter_agent_2", 200, 400, "");`)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = w.db.Exec(`INSERT INTO deals VALUES (3333, 1, "supplier_1", "consumer_1", 100, 200, 40);`)
+	_, err = w.db.Exec(`INSERT INTO deals VALUES (3333, 1, "supplier_1", "consumer_1", 100, 200, 40, "");`)
 	if err != nil {
 		return nil, err
 	}
 
-	_, err = w.db.Exec(`INSERT INTO deals VALUES (4444, 1, "supplier_2", "consumer_2", 200, 400, 41);`)
+	_, err = w.db.Exec(`INSERT INTO deals VALUES (4444, 1, "supplier_2", "consumer_2", 200, 400, 41, "");`)
 	if err != nil {
 		return nil, err
 	}

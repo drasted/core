@@ -139,8 +139,9 @@ func (w *DWH) GetOrdersList(ctx context.Context, request *pb.OrdersListRequest) 
 			counterAgent string
 			duration     uint64
 			price        string
+			benchBytes   []byte
 		)
-		if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price); err != nil {
+		if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price, &benchBytes); err != nil {
 			w.logger.Error("failed to scan order row", zap.Error(err))
 			return nil, err
 		}
@@ -182,8 +183,9 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.Order, e
 		counterAgent string
 		duration     uint64
 		price        string
+		benchBytes   []byte
 	)
-	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price); err != nil {
+	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price, &benchBytes); err != nil {
 		return nil, err
 	}
 
@@ -251,15 +253,16 @@ func (w *DWH) GetDealsList(ctx context.Context, request *pb.DealsListRequest) (*
 	var deals []*pb.Deal
 	for rows.Next() {
 		var (
-			id        string
-			status    uint64
-			supplier  string
-			consumer  string
-			duration  uint64
-			price     string
-			startTime int64
+			id         string
+			status     uint64
+			supplier   string
+			consumer   string
+			duration   uint64
+			price      string
+			startTime  int64
+			benchBytes []byte
 		)
-		if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime); err != nil {
+		if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime, &benchBytes); err != nil {
 			return nil, err
 		}
 
@@ -294,15 +297,16 @@ func (w *DWH) GetDealDetails(ctx context.Context, request *pb.ID) (*pb.Deal, err
 	}
 
 	var (
-		id        string
-		status    uint64
-		supplier  string
-		consumer  string
-		duration  uint64
-		price     string
-		startTime int64
+		id         string
+		status     uint64
+		supplier   string
+		consumer   string
+		duration   uint64
+		price      string
+		startTime  int64
+		benchBytes []byte
 	)
-	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime); err != nil {
+	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime, &benchBytes); err != nil {
 		return nil, err
 	}
 
@@ -424,10 +428,10 @@ func (w *DWH) syncOrdersTS() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	id, err := w.getLastOrderID()
-	if err != nil {
-		return err
-	}
+	//id, err := w.getLastOrderID()
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -436,10 +440,10 @@ func (w *DWH) syncDealsTS() error {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	id, err := w.getLastDealID()
-	if err != nil {
-		return err
-	}
+	//id, err := w.getLastDealID()
+	//if err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -462,8 +466,9 @@ func (w *DWH) getLastOrderID() (string, error) {
 		counterAgent string
 		duration     uint64
 		price        string
+		benchBytes   []byte
 	)
-	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price); err != nil {
+	if err := rows.Scan(&id, &orderType, &author, &counterAgent, &duration, &price, &benchBytes); err != nil {
 		return "", err
 	}
 
@@ -482,16 +487,17 @@ func (w *DWH) getLastDealID() (string, error) {
 	}
 
 	var (
-		id        string
-		status    uint64
-		supplier  string
-		consumer  string
-		duration  uint64
-		price     string
-		startTime int64
+		id         string
+		status     uint64
+		supplier   string
+		consumer   string
+		duration   uint64
+		price      string
+		startTime  int64
+		benchBytes []byte
 	)
-	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime); err != nil {
-		return nil, err
+	if err := rows.Scan(&id, &status, &supplier, &consumer, &duration, &price, &startTime, &benchBytes); err != nil {
+		return "", err
 	}
 
 	return id, nil
