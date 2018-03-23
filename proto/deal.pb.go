@@ -37,7 +37,7 @@ var DealStatus_value = map[string]int32{
 func (x DealStatus) String() string {
 	return proto.EnumName(DealStatus_name, int32(x))
 }
-func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (DealStatus) EnumDescriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 type Deal struct {
 	BuyerID           string     `protobuf:"bytes,1,opt,name=BuyerID" json:"BuyerID,omitempty"`
@@ -55,7 +55,7 @@ type Deal struct {
 func (m *Deal) Reset()                    { *m = Deal{} }
 func (m *Deal) String() string            { return proto.CompactTextString(m) }
 func (*Deal) ProtoMessage()               {}
-func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor3, []int{0} }
+func (*Deal) Descriptor() ([]byte, []int) { return fileDescriptor4, []int{0} }
 
 func (m *Deal) GetBuyerID() string {
 	if m != nil {
@@ -132,9 +132,9 @@ func init() {
 	proto.RegisterEnum("sonm.DealStatus", DealStatus_name, DealStatus_value)
 }
 
-func init() { proto.RegisterFile("deal.proto", fileDescriptor3) }
+func init() { proto.RegisterFile("deal.proto", fileDescriptor4) }
 
-var fileDescriptor3 = []byte{
+var fileDescriptor4 = []byte{
 	// 331 bytes of a gzipped FileDescriptorProto
 	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0x6c, 0x91, 0xcf, 0x4e, 0xc2, 0x40,
 	0x10, 0x87, 0x6d, 0x29, 0x2d, 0x0c, 0x04, 0xea, 0x9c, 0x36, 0x1c, 0x4c, 0xc3, 0xa9, 0x1a, 0xe5,

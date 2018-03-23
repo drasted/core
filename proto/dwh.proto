@@ -3,7 +3,7 @@ syntax = "proto3";
 import "bigint.proto";
 import "deal.proto";
 import "insonmnia.proto";
-import "order.proto";
+import "bid.proto";
 
 package sonm;
 

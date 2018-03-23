@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-import "order.proto";
+import "bid.proto";
 import "insonmnia.proto";
 import "timestamp.proto";
 
