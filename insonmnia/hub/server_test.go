@@ -7,11 +7,8 @@ import (
 
 	ethcrypto "github.com/ethereum/go-ethereum/crypto"
 	"github.com/golang/mock/gomock"
-	"github.com/shirou/gopsutil/mem"
 	"github.com/sonm-io/core/accounts"
 	"github.com/sonm-io/core/blockchain"
-	"github.com/sonm-io/core/insonmnia/hardware"
-	"github.com/sonm-io/core/insonmnia/hardware/cpu"
 	"github.com/sonm-io/core/insonmnia/miner"
 	"github.com/sonm-io/core/insonmnia/miner/plugin"
 	"github.com/sonm-io/core/insonmnia/structs"
@@ -24,13 +21,13 @@ func TestDevices(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
-	miner, err := getTestMiner(ctrl)
+	m, err := getTestMiner(ctrl)
 	assert.NoError(t, err)
 	hub := Hub{
-		worker: miner,
+		worker: m,
 		state: &state{
 			minerCtx: &MinerCtx{
-				miner: miner,
+				miner: m,
 			},
 		},
 	}
@@ -53,37 +50,34 @@ func defaultMinerMockCfg(mock *gomock.Controller) *miner.MockConfig {
 	cfg.EXPECT().LocatorEndpoint().AnyTimes().Return("127.0.0.1:9090")
 	cfg.EXPECT().PublicIPs().AnyTimes().Return([]string{"192.168.70.17", "46.148.198.133"})
 	cfg.EXPECT().Plugins().AnyTimes().Return(plugin.Config{})
-	cfg.EXPECT().Store().AnyTimes().Return("/tmp/sonm/worker.boltdb")
+	cfg.EXPECT().StorePath().AnyTimes().Return("/tmp/sonm/worker.boltdb")
+	cfg.EXPECT().StoreBucket().AnyTimes().Return("sonm")
+
 	return cfg
 }
 
-func magicHardware(ctrl *gomock.Controller) hardware.Info {
-	hw := hardware.NewMockInfo(ctrl)
-
-	c := []cpu.Device{{}}
-	g := []*pb.GPUDevice{}
-	m := &mem.VirtualMemoryStat{}
-
-	h := &hardware.Hardware{CPU: c, GPU: g, Memory: m}
-	print(h)
-
-	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
-	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
-	hw.EXPECT().Info().AnyTimes().Return(h, nil)
-
-	return hw
-}
+//func magicHardware(ctrl *gomock.Controller) hardware.Info {
+//	hw := hardware.NewMockInfo(ctrl)
+//
+//	c := []cpu.Device{{}}
+//	g := []*pb.GPUDevice{}
+//	m := &mem.VirtualMemoryStat{}
+//
+//	h := &hardware.Hardware{CPU: c, GPU: g, Memory: m}
+//	print(h)
+//
+//	hw.EXPECT().CPU().AnyTimes().Return(c, nil)
+//	hw.EXPECT().Memory().AnyTimes().Return(m, nil)
+//	hw.EXPECT().Info().AnyTimes().Return(h, nil)
+//
+//	return hw
+//}
 
 func getTestMiner(mock *gomock.Controller) (*miner.Miner, error) {
-
 	cfg := defaultMinerMockCfg(mock)
-
 	ovs := miner.NewMockOverseer(mock)
-
 	ovs.EXPECT().Info(gomock.Any()).AnyTimes().Return(map[string]miner.ContainerMetrics{}, nil)
-	hw := magicHardware(mock)
-
-	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs), miner.WithHardware(hw))
+	return miner.NewMiner(cfg, miner.WithKey(getTestKey()), miner.WithOverseer(ovs))
 }
 
 var (

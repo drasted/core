@@ -9,18 +9,19 @@ import (
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/docker/libkv/store/boltdb"
-	"github.com/sonm-io/core/proto"
 )
 
 const stateKey = "state"
 
 type stateJSON struct {
-	Benchmarks map[string]*sonm.Benchmark `json:"benchmarks"`
+	Benchmarks map[string]bool `json:"benchmarks"`
+	HwHash     string          `json:"hw_hash"`
 }
 
 func newEmptyState() *stateJSON {
 	return &stateJSON{
-		Benchmarks: map[string]*sonm.Benchmark{},
+		Benchmarks: map[string]bool{},
+		HwHash:     "",
 	}
 }
 
@@ -51,7 +52,7 @@ func NewState(ctx context.Context, config Config) (*state, error) {
 		ctx: ctx,
 		db:  stor,
 		data: &stateJSON{
-			Benchmarks: make(map[string]*sonm.Benchmark),
+			Benchmarks: map[string]bool{},
 		},
 	}
 
@@ -104,17 +105,32 @@ func (s *state) save() error {
 	return s.db.Put(stateKey, b, &store.WriteOptions{})
 }
 
-func (s *state) getBenchmarkResults() map[string]*sonm.Benchmark {
+func (s *state) getBenchmarkResults() map[string]bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	return s.data.Benchmarks
 }
 
-func (s *state) setBenchmarkResults(v map[string]*sonm.Benchmark) error {
+func (s *state) setBenchmarkResults(v map[string]bool) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	s.data.Benchmarks = v
+	return s.save()
+}
+
+func (s *state) getHardwareHash() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	return s.data.HwHash
+}
+
+func (s *state) setHwHash(v string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.data.HwHash = v
 	return s.save()
 }

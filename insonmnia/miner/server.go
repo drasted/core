@@ -10,13 +10,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccding/go-stun/stun"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/go-connections/nat"
 	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
+	"github.com/sonm-io/core/insonmnia/miner/gpu"
 
 	"github.com/sonm-io/core/insonmnia/benchmarks"
 	"github.com/sonm-io/core/insonmnia/hardware"
@@ -46,7 +46,6 @@ type Miner struct {
 	hubKey *ecdsa.PublicKey
 
 	publicIPs []string
-	natType   stun.NATType
 
 	ovs Overseer
 
@@ -91,16 +90,11 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		o.ctx = context.Background()
 	}
 
-	if o.hardware == nil {
-		o.hardware = hardware.New()
-	}
-
 	if o.benchList == nil {
-		// todo: replace this shit with some benchmark impl.
 		o.benchList = benchmarks.NewDumbBenchmarks()
 	}
 
-	hardwareInfo, err := o.hardware.Info()
+	hardwareInfo, err := hardware.NewHardware()
 	if err != nil {
 		return nil, err
 	}
@@ -123,9 +117,7 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 		return nil, errors.Wrap(err, "failed to set up network options")
 	}
 
-	log.G(o.ctx).Info("discovered public IPs",
-		zap.Any("public IPs", o.publicIPs),
-		zap.Any("nat", o.nat))
+	log.G(o.ctx).Info("discovered public IPs", zap.Any("public IPs", o.publicIPs))
 
 	plugins, err := plugin.NewRepository(o.ctx, cfg.Plugins())
 	if err != nil {
@@ -149,18 +141,14 @@ func NewMiner(cfg Config, opts ...Option) (m *Miner, err error) {
 
 	m = &Miner{
 		ctx: o.ctx,
-
 		cfg: cfg,
-
 		ovs: o.ovs,
 
 		plugins: plugins,
 
 		hardware:  hardwareInfo,
 		resources: resource.NewPool(hardwareInfo),
-
 		publicIPs: o.publicIPs,
-		natType:   o.nat,
 
 		containers:     make(map[string]*ContainerInfo),
 		statusChannels: make(map[int]chan bool),
@@ -284,19 +272,9 @@ func (m *Miner) Info(ctx context.Context, request *pb.Empty) (*pb.InfoReply, err
 	return result, nil
 }
 
-// Handshake is the first frame received from a Hub.
-//
-// This is a self representation about initial resources this Miner provides.
-// TODO: May be useful to register a channel to cover runtime resource changes.
-func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) (*pb.MinerHandshakeReply, error) {
-	log.G(m.ctx).Info("handling Handshake request", zap.Any("req", request))
-
-	resp := &pb.MinerHandshakeReply{
-		Capabilities: m.hardware.IntoProto(),
-		NatType:      pb.NewNATType(m.natType),
-	}
-
-	return resp, nil
+// Handshake notifies Hub about Worker's hardware capabilities
+func (m *Miner) Handshake(ctx context.Context, request *pb.MinerHandshakeRequest) *hardware.Hardware {
+	return m.hardware
 }
 
 func (m *Miner) scheduleStatusPurge(id string) {
@@ -448,7 +426,7 @@ func (m *Miner) Start(ctx context.Context, request *pb.MinerStartRequest) (*pb.M
 		TaskId:        request.Id,
 		CommitOnStop:  request.Container.CommitOnStop,
 		Env:           request.Container.Env,
-		GPURequired:   resources.RequiresGPU(),
+		GpuRequired:   resources.RequiresGPU(),
 		volumes:       request.Container.Volumes,
 		mounts:        mounts,
 		networks:      networks,
@@ -737,59 +715,51 @@ func (m *Miner) RunSSH() error {
 	return m.ssh.Run()
 }
 
-/*
-	TODO: how to match required benchmarks and exiting hardware
-	TODO: how to match benchmark results with hardware items
-
-	store:
-		devID -> benchResult
-*/
-
-// buildDeviceMap analyzes Worker's hardware capabilities, split available hardware units into groups.
-// Each HW group (CPUs, GPUs, RAM, etc) contain device units that must be measured by the benchmark suite.
-//
-// Device mapping must be built each time when benchmarking is scheduled to be performed.
-// If device mapping is different from cached one - seems like some devices where changed on the host system,
-// and the whole Host's performance must be re-measured again.
-//
-// TODO: returning data type is wild scary shit.
-func (m *Miner) buildDeviceMap() map[string][]string {
-	// Warn(sshaman1101): I have no idea how to correctly group hardware
-	return make(map[string][]string)
-}
-
 // RunBenchmarks perform benchmarking of Worker's resources.
 func (m *Miner) RunBenchmarks() error {
-	exitingBenches := m.state.getBenchmarkResults()
-	requiredBenches, err := m.benchmarkList.List()
-	if err != nil {
-		log.G(m.ctx).Warn("cannot retrieve benchmarks list")
-		return err
-	}
+	savedHardware := m.state.getHardwareHash()
+	exitingHardware := m.hardware.Hash()
 
-	isMatched := m.isBenchmarkListMatches(requiredBenches, exitingBenches)
-	if isMatched {
-		log.G(m.ctx).Debug("benchmarks list is matched, skip benchmarking this worker")
+	log.G(m.ctx).Debug("hardware hashes",
+		zap.String("saved", savedHardware),
+		zap.String("exiting", exitingHardware))
+
+	requiredBenchmarks := m.benchmarkList.List()
+	savedBenchmarks := m.state.getBenchmarkResults()
+
+	hwHashesMatched := exitingHardware == savedHardware
+	benchMatched := m.isBenchmarkListMatches(requiredBenchmarks, savedBenchmarks)
+
+	log.G(m.ctx).Debug("state matching",
+		zap.Bool("hwHashesMatched", hwHashesMatched),
+		zap.Bool("benchMatched", benchMatched))
+
+	if benchMatched && hwHashesMatched {
+		log.G(m.ctx).Debug("benchmarks list is matched, hardware is not changed, skip benchmarking this worker")
 		return nil
 	}
 
-	for _, bench := range requiredBenches {
+	passedBenchmarks := map[string]bool{}
+	for _, bench := range requiredBenchmarks {
 		result, err := m.runSingleBenchmark(bench)
 		if err != nil {
 			return err
 		}
 
-		log.G(m.ctx).Debug("saving benchmark results",
-			zap.String("bench_id", bench.GetID()),
-			zap.Uint64("result", result))
 		bench.Result = result
+		passedBenchmarks[bench.GetID()] = true
 	}
 
-	return m.state.setBenchmarkResults(requiredBenches)
+	err := m.state.setBenchmarkResults(passedBenchmarks)
+	if err != nil {
+		return err
+	}
+
+	return m.state.setHwHash(m.hardware.Hash())
 }
 
 // isBenchmarkListMatches checks if already passed benchmarks is matches required benchmarks list.
-func (m *Miner) isBenchmarkListMatches(required, exiting map[string]*pb.Benchmark) bool {
+func (m *Miner) isBenchmarkListMatches(required map[string]*pb.Benchmark, exiting map[string]bool) bool {
 	for id := range required {
 		if _, ok := exiting[id]; !ok {
 			return false
@@ -799,14 +769,27 @@ func (m *Miner) isBenchmarkListMatches(required, exiting map[string]*pb.Benchmar
 	return true
 }
 
-// runSingleBenchmark executes single benchmark from suite.
 func (m *Miner) runSingleBenchmark(bench *pb.Benchmark) (uint64, error) {
-	log.G(m.ctx).Info("starting benchmark", zap.Any("bench", bench))
-
-	d := Description{
-		Image: bench.GetImage(),
+	//
+	// WARN: alter `m.hardware` and save benchmark results
+	//
+	if benchmarks.IsSpecialBenchmark(bench) {
+		return m.runSpecialBenchmark(bench)
+	} else {
+		return m.runBenchmarkContainer(bench)
 	}
-	_, statusReply, err := m.ovs.Start(m.ctx, d)
+}
+
+// runBenchmarkContainer executes benchmark as docker image.
+func (m *Miner) runBenchmarkContainer(bench *pb.Benchmark) (uint64, error) {
+	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("bench", bench))
+
+	d, err := m.benchmarkContainerParams(bench)
+	if err != nil {
+		return 0, err
+	}
+
+	statusChan, statusReply, err := m.ovs.Start(m.ctx, d)
 	if err != nil {
 		return 0, fmt.Errorf("cannot start container with benchmark: %v", err)
 	}
@@ -830,10 +813,23 @@ func (m *Miner) runSingleBenchmark(bench *pb.Benchmark) (uint64, error) {
 		return 0, fmt.Errorf("cannot parse benchmark result: %v", err)
 	}
 
+	<-statusChan
+	if err := m.ovs.Stop(m.ctx, statusReply.ID); err != nil {
+		log.G(m.ctx).Warn("cannot stop benchmark container", zap.Error(err))
+	}
+
 	return bench.Result, nil
 }
 
+func (m *Miner) runSpecialBenchmark(bench *pb.Benchmark) (uint64, error) {
+	log.G(m.ctx).Debug("starting containered benchmark", zap.Any("bench", bench))
+	// TODO(sshaman1101): switch benchmark type and run custom code.
+	return 0, nil
+}
+
 func parseBenchmarkResult(data []byte) (*pb.Benchmark, error) {
+	// todo: result is obj with the "result" field and array of values.
+	// todo: conform and rewrite later.
 	v := &pb.Benchmark{}
 	err := json.Unmarshal(data, &v)
 	if err != nil {
@@ -851,4 +847,31 @@ func (m *Miner) Close() {
 	m.ovs.Close()
 	m.controlGroup.Delete()
 	m.plugins.Close()
+}
+
+func (m *Miner) benchmarkContainerParams(bench *pb.Benchmark) (Description, error) {
+	switch bench.GetID() {
+	case benchmarks.CPUSysbenchSingle, benchmarks.CPUSysbenchMulti:
+		// todo:add available CPU cores count to ENV PARAMS
+		return Description{Image: bench.Image}, nil
+
+	case benchmarks.NetDownload, benchmarks.NetUpload:
+		return Description{Image: bench.Image}, nil
+
+	case benchmarks.GPUEthHashrate, benchmarks.GPUCashHashrate, benchmarks.GPURedshift:
+		GPUs := []gpu.GPUID{}
+		for _, g := range m.hardware.GPU {
+			GPUs = append(GPUs, gpu.GPUID(g.Device.GetID()))
+		}
+
+		d := Description{
+			Image:       bench.Image,
+			GpuRequired: len(m.hardware.GPU) > 0,
+			GpuDevices:  GPUs,
+		}
+		return d, nil
+
+	default:
+		return Description{}, fmt.Errorf("cannot prepare parameners for benchmark \"%s\"", bench.GetID())
+	}
 }

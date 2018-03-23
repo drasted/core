@@ -3,19 +3,14 @@ package miner
 import (
 	"crypto/ecdsa"
 
-	"github.com/ccding/go-stun/stun"
-	log "github.com/noxiouz/zapctx/ctxlog"
 	"github.com/pkg/errors"
 	"github.com/sonm-io/core/insonmnia/benchmarks"
-	"github.com/sonm-io/core/insonmnia/hardware"
 	"github.com/sonm-io/core/util"
 	"golang.org/x/net/context"
 )
 
 type options struct {
 	ctx       context.Context
-	hardware  hardware.Info
-	nat       stun.NATType
 	ovs       Overseer
 	ssh       SSH
 	key       *ecdsa.PrivateKey
@@ -25,28 +20,6 @@ type options struct {
 
 func (o *options) setupNetworkOptions(cfg Config) error {
 	var pubIPs []string
-
-	// Discover IP if we're behind a NAT.
-	if cfg.Firewall() != nil {
-		log.G(o.ctx).Debug("discovering public IP address with NAT type, this might be slow")
-
-		client := stun.NewClient()
-		if cfg.Firewall().Server != "" {
-			client.SetServerAddr(cfg.Firewall().Server)
-		}
-
-		nat, addr, err := client.Discover()
-		if err != nil {
-			return err
-		}
-
-		pubIPs = append(pubIPs, addr.IP())
-		o.nat, o.publicIPs = nat, SortedIPs(pubIPs)
-
-		return nil
-	}
-
-	o.nat = stun.NATNone
 
 	// Use public IPs from config (if provided).
 	pubIPs = cfg.PublicIPs()
@@ -77,18 +50,6 @@ type Option func(*options)
 func WithContext(ctx context.Context) Option {
 	return func(opts *options) {
 		opts.ctx = ctx
-	}
-}
-
-func WithHardware(hardwareInfo hardware.Info) Option {
-	return func(opts *options) {
-		opts.hardware = hardwareInfo
-	}
-}
-
-func WithNat(nat stun.NATType) Option {
-	return func(opts *options) {
-		opts.nat = nat
 	}
 }
 

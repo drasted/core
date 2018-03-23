@@ -197,6 +197,7 @@ func New(ctx context.Context, cfg *Config, opts ...Option) (*Hub, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	hubState, err := newState(ctx, ethWrapper, defaults.market, defaults.cluster, minerCtx)
 	if err != nil {
 		return nil, err
@@ -277,11 +278,6 @@ func (h *Hub) Serve() error {
 	h.startTime = time.Now()
 
 	rendezvousEndpoints, err := h.cfg.NPP.Rendezvous.ConvertEndpoints()
-	if err != nil {
-		return err
-	}
-
-	err = h.worker.RunBenchmarks()
 	if err != nil {
 		return err
 	}
