@@ -1,3 +1,6 @@
 [submodule "blockchain/tsc"]
 	path = blockchain/tsc
     	url=https://github.com/sonm-io/deals-registry
+[submodule "blockchain/market"]
+	path = blockchain/market
+	url = git@github.com:sonm-io/market.git
