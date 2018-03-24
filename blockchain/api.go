@@ -148,9 +148,7 @@ func NewAPI(ethEndpoint *string, gasPrice *int64) (Blockchainer, error) {
 // Deals appearance
 // ----------------
 
-var DealOpenedTopic = common.HexToHash("0x873cb35202fef184c9f8ee23c04e36dc38f3e26fb285224ca574a837be976848")
 var DealAcceptedTopic = common.HexToHash("0x3a38edea6028913403c74ce8433c90eca94f4ca074d318d8cb77be5290ba4f15")
-var DealClosedTopic = common.HexToHash("0x72615f99a62a6cc2f8452d5c0c9cbc5683995297e1d988f09bb1471d4eefb890")
 
 func (bch *api) OpenDeal(ctx context.Context, key *ecdsa.PrivateKey, deal *pb.Deal) (*types.Transaction, error) {
 	opts := bch.GetTxOpts(ctx, key, 360000)

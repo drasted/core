@@ -25,6 +25,10 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+// 1. Start monitoring deal/order/deal change request updates.
+// 2. For each known deal/order, delete already inactive entry from known list.
+// 3. For deal/order ID in (last known ID, max ID], save active entries to known list.
+
 type DWH struct {
 	mu          sync.RWMutex
 	ctx         context.Context
