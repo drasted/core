@@ -299,7 +299,7 @@ func printOrderDetails(cmd *cobra.Command, order *pb.Order) {
 		cmd.Printf("Price:          %s\r\n", order.PricePerSecond.ToPriceString())
 
 		cmd.Printf("SupplierID:     %s\r\n", order.SupplierID)
-		cmd.Printf("BuyerID:        %s\r\n", order.ByuerID)
+		cmd.Printf("BuyerID:        %s\r\n", order.BuyerID)
 
 		printOrderResources(cmd, order.Slot.Resources)
 	} else {

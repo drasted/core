@@ -95,33 +95,12 @@ type Blockchainer interface {
 	GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts
 }
 
-func initEthClient(ethEndpoint *string) (*ethclient.Client, error) {
-	var endpoint string
-	if ethEndpoint == nil {
-		endpoint = defaultEthEndpoint
-	} else {
-		endpoint = *ethEndpoint
-	}
-	ethClient, err := ethclient.Dial(endpoint)
-	if err != nil {
-		return nil, err
-	}
-	return ethClient, nil
-}
-
 func (bch *api) GetTxOpts(ctx context.Context, key *ecdsa.PrivateKey, gasLimit int64) *bind.TransactOpts {
 	opts := bind.NewKeyedTransactor(key)
 	opts.Context = ctx
 	opts.GasLimit = big.NewInt(gasLimit)
 	opts.GasPrice = big.NewInt(bch.gasPrice)
 	return opts
-}
-
-func getCallOptions(ctx context.Context) *bind.CallOpts {
-	return &bind.CallOpts{
-		Pending: true,
-		Context: ctx,
-	}
 }
 
 type api struct {

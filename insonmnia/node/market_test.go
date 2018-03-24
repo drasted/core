@@ -83,7 +83,7 @@ func getTestEth(ctx context.Context, ctrl *gomock.Controller) blockchain.Blockch
 func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 	m := pb.NewMockMarketClient(ctrl)
 	ord := makeOrder()
-	ord.ByuerID = addr.Hex()
+	ord.BuyerID = addr.Hex()
 	ord.Id = "my-order-id"
 
 	m.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
@@ -628,7 +628,7 @@ func TestCancelOrderHandler(t *testing.T) {
 
 	mrk := pb.NewMockMarketClient(ctrl)
 	ord := makeOrder()
-	ord.ByuerID = addr.Hex()
+	ord.BuyerID = addr.Hex()
 	ord.Id = "my-order-id"
 
 	mrk.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().
@@ -673,7 +673,7 @@ func TestDealCreatedOnFirstTryAndOrderIsCancelled(t *testing.T) {
 
 	marketClient := pb.NewMockMarketClient(ctrl)
 	ord := makeOrder()
-	ord.ByuerID = addr.Hex()
+	ord.BuyerID = addr.Hex()
 	ord.Id = "my-order-id"
 
 	marketClient.EXPECT().CreateOrder(gomock.Any(), gomock.Any()).AnyTimes().

@@ -4,15 +4,13 @@ import (
 	"crypto/ecdsa"
 	"crypto/tls"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"math/big"
 	"net"
 	"strings"
 	"sync"
-
 	"time"
-
-	"encoding/json"
 
 	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	_ "github.com/mattn/go-sqlite3"
@@ -152,7 +150,7 @@ func (w *DWH) GetOrdersList(ctx context.Context, request *pb.OrdersListRequest) 
 		bigPrice.SetString(price, 10)
 		orders = append(orders, &pb.Order{
 			Id:             id,
-			ByuerID:        author,
+			BuyerID:        author,
 			SupplierID:     counterAgent,
 			PricePerSecond: pb.NewBigInt(bigPrice),
 			Slot: &pb.Slot{
@@ -195,7 +193,7 @@ func (w *DWH) GetOrderDetails(ctx context.Context, request *pb.ID) (*pb.Order, e
 	bigPrice.SetString(price, 10)
 	return &pb.Order{
 		Id:             id,
-		ByuerID:        author,
+		BuyerID:        author,
 		SupplierID:     counterAgent,
 		PricePerSecond: pb.NewBigInt(bigPrice),
 		Slot: &pb.Slot{
@@ -468,7 +466,7 @@ func (w *DWH) syncOrdersTS() error {
 			order.Id,
 			order.OrderType,
 			order.SupplierID,
-			order.ByuerID,
+			order.BuyerID,
 			order.Slot.Duration,
 			order.PricePerSecond,
 			benchBlob)

@@ -57,7 +57,7 @@ message Order {
     // Order ID, UUIDv4
     string id = 1;
     // Buyer's EtherumID
-    string byuerID = 2;
+    string buyerID = 2;
     // Supplier's is EtherumID
     string supplierID = 3;
     // Order type (Bid or Ask)

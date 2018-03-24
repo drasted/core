@@ -298,7 +298,7 @@ func (m *marketAPI) CreateOrder(ctx context.Context, req *pb.Order) (*pb.Order, 
 		return nil, err
 	}
 
-	req.ByuerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
+	req.BuyerID = util.PubKeyToAddr(m.remotes.key.PublicKey).Hex()
 	created, err := m.remotes.market.CreateOrder(ctx, req)
 	if err != nil {
 		return nil, err
@@ -588,7 +588,7 @@ func (m *marketAPI) GetProcessing(ctx context.Context, req *pb.Empty) (*pb.GetPr
 func (m *marketAPI) getMyOrders() (*pb.GetOrdersReply, error) {
 	req := &pb.GetOrdersRequest{
 		Order: &pb.Order{
-			ByuerID:   util.PubKeyToAddr(m.remotes.key.PublicKey).Hex(),
+			BuyerID:   util.PubKeyToAddr(m.remotes.key.PublicKey).Hex(),
 			OrderType: pb.OrderType_BID,
 		},
 	}

@@ -19,9 +19,10 @@ message Deal {
     BigInt price = 4;
     Timestamp startTime = 5;
     Timestamp endTime = 6;
-
     string SpecificationHash = 7;
     uint64 workTime = 8;
     string id = 9;
     repeated uint64 benchmarks = 10;
+    string AskID = 11;
+    string BidID = 12;
 }

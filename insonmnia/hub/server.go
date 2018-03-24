@@ -577,8 +577,8 @@ func (h *Hub) ProposeDeal(ctx context.Context, r *pb.DealRequest) (*pb.Empty, er
 		return nil, status.Errorf(codes.NotFound, "ask not found")
 	}
 
-	if askOrder.GetByuerID() != "" {
-		if askOrder.GetByuerID() != bidOrder.GetByuerID() {
+	if askOrder.GetBuyerID() != "" {
+		if askOrder.GetBuyerID() != bidOrder.GetBuyerID() {
 			return nil, status.Errorf(codes.NotFound, "ask order is bound to special buyer, but IDs is not matching")
 		}
 
@@ -656,7 +656,7 @@ func (h *Hub) ApproveDeal(ctx context.Context, request *pb.ApproveDealRequest) (
 
 	// Ensure that deal is created in BC, if not - wait.
 	dealID := DealID(request.GetDealID().Unwrap().String())
-	buyerID := common.HexToAddress(bidOrder.GetByuerID())
+	buyerID := common.HexToAddress(bidOrder.GetBuyerID())
 
 	deal, err := h.eth.WaitForDealCreated(dealID, buyerID)
 	if err != nil {
@@ -782,7 +782,7 @@ func (h *Hub) InsertSlot(ctx context.Context, request *pb.InsertSlotRequest) (*p
 	ord := &pb.Order{
 		OrderType:      pb.OrderType_ASK,
 		Slot:           slot.Unwrap(),
-		ByuerID:        request.BuyerID,
+		BuyerID:        request.BuyerID,
 		PricePerSecond: request.PricePerSecond,
 		SupplierID:     util.PubKeyToAddr(h.ethKey.PublicKey).Hex(),
 	}

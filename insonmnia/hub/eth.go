@@ -61,7 +61,7 @@ func (e *eth) hubAddress() string {
 }
 
 func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
-	balance, err := e.bc.BalanceOf(e.ctx, bidOrder.ByuerID)
+	balance, err := e.bc.BalanceOf(e.ctx, bidOrder.BuyerID)
 	if err != nil {
 		return err
 	}
@@ -73,7 +73,7 @@ func (e *eth) VerifyBuyerBalance(bidOrder *structs.Order) error {
 }
 
 func (e *eth) VerifyBuyerAllowance(bidOrder *structs.Order) error {
-	allowance, err := e.bc.AllowanceOf(e.ctx, bidOrder.ByuerID, tsc.DealsAddress)
+	allowance, err := e.bc.AllowanceOf(e.ctx, bidOrder.BuyerID, tsc.DealsAddress)
 	if err != nil {
 		return err
 	}

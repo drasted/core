@@ -58,7 +58,7 @@ func (d *dealAuthorization) Authorize(ctx context.Context, request interface{}) 
 		return err
 	}
 
-	allowedWallet := meta.Order.GetByuerID()
+	allowedWallet := meta.Order.GetBuyerID()
 
 	log.G(d.ctx).Debug("found allowed wallet for a deal",
 		zap.Stringer("deal", dealID),

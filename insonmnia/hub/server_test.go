@@ -102,7 +102,7 @@ func getTestMarket(ctrl *gomock.Controller) pb.MarketClient {
 		Id:             "my-order-id",
 		OrderType:      pb.OrderType_BID,
 		PricePerSecond: pb.NewBigIntFromInt(1000),
-		ByuerID:        addr.Hex(),
+		BuyerID:        addr.Hex(),
 		Slot: &pb.Slot{
 			Resources: &pb.Resources{},
 		},
