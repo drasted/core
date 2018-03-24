@@ -1,8 +1,59 @@
 // This package contains server-side stuff used for relaying connections
 // between two peers.
 //
-// The protocol is: handshake -> reply + relay.
-// TODO: Docs about security and DoS attacks.
+// The Relay server is a last resort tool used to penetrate the NAT in case of
+// over-paranoid network configurations, such as Symmetrical NAT or manual
+// iptables hacks. When NPP gives up it acts as a third-party server which
+// transports TCP traffic in the userland.
+// Briefly what it allows - is to establish a TCP connection between two hosts
+// with private IP addresses.
+//
+// There are several components in the Relay server, which allows to unite
+// several servers into the single cluster, performing client-side
+// load-balancing with the help of servers.
+//
+// First of all, when a peer server wants to publish itself on the Internet it
+// connects to the one of known Relay services and sends a DISCOVER request,
+// where it provides its own ID - the Ethereum address in our case.
+// The Relay, depending on its cluster's state, selects the proper Relay
+// service endpoint, where the meeting will be and returns it back.
+// Internally all of the discovered Relays have a consistent hash ring, which
+// is used to map the ETH address into a point on it to be able to perform load
+// balancing.
+//
+// Consistent hashing is a special kind of hashing such that when a hash table
+// is resized, only K/n keys need to be remapped on average, where K is the
+// number of keys, and n is the number of slots.
+// In contrast, in most traditional hash tables, a change in the number of
+// array slots causes nearly all keys to be remapped because the mapping
+// between the keys and the slots is defined by a modular operation.
+// This allows us to add or remove additional Relay servers depending on their
+// load statuses without rebuilding the entire hash ring, which in its case
+// requires reconnection for all of the peers in the awaiting-for-other-peer
+// state. So the very least part of already connected and awaiting peers will
+// be reconnected.
+//
+// After discovering the proper Relay endpoint a HANDSHAKE message is sent to
+// publish the server. Internally an ETH address provided is verified using
+// asymmetrical cryptography based on secp256k1 curves.
+//
+// At the other side the peer client performs almost the same steps, instead of
+// its own ETH address it specifies the target ETH address the client wants to
+// connect. When at least two peers are discovered the relaying process starts
+// by simply copying all the TCP payload without inspection. Thus, an
+// authentication between two peers is still required to keep the traffic
+// encrypted and avoid MITM attack.
+//
+// Several Relays can be united in a single cluster by specifying several
+// endpoints of other members in the cluster the user want to join. Internally
+// a SWIM protocol is used for fast members discovering and convergence. An
+// optional message encryption and members authentication can be specified for
+// security reasons.
+//
+// Relay servers obviously require to be hosted on machines with public IP
+// address. However additionally an announce endpoint can be specified to host
+// Relay servers under the NAT, but with configured PMP or other stuff that
+// allows to forward incoming traffic to the private network.
 
 package relay
 
