@@ -101,6 +101,7 @@ It has these top-level messages:
 	HandshakeRequest
 	DiscoverResponse
 	HandshakeResponse
+	RelayClusterReply
 	ConnectRequest
 	PublishRequest
 	RendezvousReply

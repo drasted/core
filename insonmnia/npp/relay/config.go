@@ -11,12 +11,6 @@ import (
 	"go.uber.org/zap/zapcore"
 )
 
-// LoggingConfig represents a logging config.
-type LoggingConfig struct {
-	Level string `required:"true" default:"debug"`
-	level zapcore.Level
-}
-
 // ClusterConfig represents a cluster membership config.
 type ClusterConfig struct {
 	Name      string
@@ -26,10 +20,21 @@ type ClusterConfig struct {
 	Members   []string
 }
 
+// LoggingConfig represents a logging config.
+type LoggingConfig struct {
+	Level string `required:"true" default:"debug"`
+	level zapcore.Level
+}
+
+type MonitorConfig struct {
+	Endpoint string
+}
+
 type config struct {
 	Addr    string        `yaml:"endpoint" required:"true"`
 	Cluster ClusterConfig `yaml:"cluster"`
 	Logging LoggingConfig `yaml:"logging"`
+	Monitor MonitorConfig `yaml:"monitoring"`
 }
 
 // TODO: Docs.
@@ -37,6 +42,7 @@ type Config struct {
 	Addr    net.Addr
 	Cluster ClusterConfig
 	Logging LoggingConfig
+	Monitor MonitorConfig
 }
 
 // NewConfig loads a new Relay server config from a file.
@@ -71,6 +77,7 @@ func NewConfig(path string) (*Config, error) {
 		Addr:    addr,
 		Cluster: cfg.Cluster,
 		Logging: cfg.Logging,
+		Monitor: cfg.Monitor,
 	}, nil
 }
 

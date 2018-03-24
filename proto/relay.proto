@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+import "insonmnia.proto";
+
 package sonm;
 
 enum PeerType {
@@ -42,4 +44,12 @@ message HandshakeResponse {
     int32 error = 1;
     // Description describes an error above.
     string description = 2;
+}
+
+service Relay {
+    rpc Cluster(Empty) returns (RelayClusterReply) {}
+}
+
+message RelayClusterReply {
+    repeated string members = 1;
 }

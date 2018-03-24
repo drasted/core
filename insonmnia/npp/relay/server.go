@@ -81,6 +81,15 @@ type meeting struct {
 	tx   chan<- net.Conn
 }
 
+type meetingRoom struct {
+	mu sync.Mutex
+	// We allow multiple clients to be waited for servers.
+	clients map[common.Address]*connPool
+	// Also we allow the opposite: multiple servers can be registered for
+	// fault tolerance.
+	servers map[common.Address]*connPool
+}
+
 type ConnID string
 
 type connPool struct {
@@ -148,6 +157,8 @@ type server struct {
 
 	metrics *metrics
 
+	monitoring *monitor
+
 	log *zap.SugaredLogger
 }
 
@@ -200,6 +211,8 @@ func NewServer(cfg Config, options ...Option) (*server, error) {
 		return nil, err
 	}
 
+	m.monitoring = newMonitor(cfg.Monitor, m.cluster, opts.log)
+
 	return m, nil
 }
 
@@ -248,6 +261,14 @@ func (m *server) initCluster(cfg ClusterConfig) error {
 
 // Serve starts the relay TCP server.
 func (m *server) Serve() error {
+	wg := errgroup.Group{}
+	wg.Go(m.serveTCP)
+	wg.Go(m.serveGRPC)
+
+	return wg.Wait()
+}
+
+func (m *server) serveTCP() error {
 	m.log.Infof("running Relay server on %s", m.listener.Addr())
 	defer m.log.Info("Relay server has been stopped")
 
@@ -270,6 +291,10 @@ func (m *server) Serve() error {
 		m.log.Debugf("accepted connection from %s", conn.RemoteAddr())
 		go m.processConnection(ctx, conn)
 	}
+}
+
+func (m *server) serveGRPC() error {
+	return m.monitoring.Serve()
 }
 
 func (m *server) processConnection(ctx context.Context, conn net.Conn) {
@@ -346,6 +371,8 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		// a random one and relay.
 		// Otherwise put ourselves into a meeting map.
 
+		targetPeer := m.meetingRoom.PopRandomClient()
+
 		var targetPeer *meeting
 		clients, ok := m.clients[addr]
 		if ok {
@@ -378,6 +405,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				return m.relay(ctx, conn, clientConn)
 			}
 		case <-timer.C:
+			m.meetingRoom.PopServer(id)
 			if servers, ok := m.servers[addr]; ok {
 				servers.pop(id)
 			}
@@ -467,57 +495,43 @@ func (m *server) relay(ctx context.Context, server, client net.Conn) error {
 	log.Info("ready for relaying")
 	defer log.Info("finished relaying")
 
-	// TODO: Accounting.
 	wg := errgroup.Group{}
 	wg.Go(func() error {
-		buf := make([]byte, m.bufferSize)
-
-		for {
-			bytesRead, err := server.Read(buf[:])
-			if err != nil {
-				return err
-			}
-
-			var bytesSent int
-			for bytesSent < bytesRead {
-				n, err := client.Write(buf[bytesSent:bytesRead])
-				if err != nil {
-					return err
-				}
-
-				bytesSent += n
-			}
-
-			log.Debugf("%d bytes transmitted %s -> %s", bytesRead, server.RemoteAddr(), client.RemoteAddr())
-		}
+		return m.transmitTCP(server, client, log)
 	})
 	wg.Go(func() error {
-		buf := make([]byte, m.bufferSize)
-
-		for {
-			bytesRead, err := client.Read(buf[:])
-			if err != nil {
-				return err
-			}
-
-			var bytesSent int
-			for bytesSent < bytesRead {
-				n, err := server.Write(buf[bytesSent:bytesRead])
-				if err != nil {
-					return err
-				}
-
-				bytesSent += n
-			}
-
-			log.Debugf("%d bytes transmitted %s -> %s", bytesRead, client.RemoteAddr(), server.RemoteAddr())
-		}
+		return m.transmitTCP(client, server, log)
 	})
 
 	return wg.Wait()
 }
 
+func (m *server) transmitTCP(from, to net.Conn, log *zap.SugaredLogger) error {
+	// TODO: Accounting.
+	buf := make([]byte, m.bufferSize)
+
+	for {
+		bytesRead, err := from.Read(buf[:])
+		if err != nil {
+			return err
+		}
+
+		var bytesSent int
+		for bytesSent < bytesRead {
+			n, err := to.Write(buf[bytesSent:bytesRead])
+			if err != nil {
+				return err
+			}
+
+			bytesSent += n
+		}
+
+		log.Debugf("%d bytes transmitted %s -> %s", bytesRead, from.RemoteAddr(), to.RemoteAddr())
+	}
+}
+
 func (m *server) Close() error {
+	m.monitoring.Close()
 	return m.listener.Close()
 }
 
