@@ -371,7 +371,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 		// a random one and relay.
 		// Otherwise put ourselves into a meeting map.
 
-		targetPeer := m.meetingRoom.PopRandomClient()
+		// TODO: Decompose into "targetPeer := m.meetingRoom.PopRandomClient()"
 
 		var targetPeer *meeting
 		clients, ok := m.clients[addr]
@@ -405,7 +405,7 @@ func (m *server) processHandshake(ctx context.Context, conn net.Conn, handshake 
 				return m.relay(ctx, conn, clientConn)
 			}
 		case <-timer.C:
-			m.meetingRoom.PopServer(id)
+			// TODO: m.meetingRoom.PopServer(id)
 			if servers, ok := m.servers[addr]; ok {
 				servers.pop(id)
 			}
