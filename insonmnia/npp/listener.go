@@ -57,6 +57,7 @@ type Listener struct {
 
 	minBackoffInterval time.Duration
 	maxBackoffInterval time.Duration
+	nppTimeout         time.Duration
 }
 
 // NewListener constructs a new NPP listener that will listen the specified
@@ -84,13 +85,14 @@ func NewListener(ctx context.Context, addr string, options ...Option) (net.Liste
 		listenerChannel: channel,
 		listener:        listener,
 		puncher:         opts.puncher,
-		//puncherNew:      opts.puncherNew,
-		nppChannel: make(chan connTuple, opts.nppBacklog),
+		puncherNew:      opts.puncherNew,
+		nppChannel:      make(chan connTuple, opts.nppBacklog),
 
 		relayNew: opts.relayNew,
 
 		minBackoffInterval: 500 * time.Millisecond,
 		maxBackoffInterval: 8000 * time.Millisecond,
+		nppTimeout:         5 * time.Second,
 	}
 
 	go m.listen()
@@ -159,16 +161,6 @@ func (m *Listener) listenPuncher(ctx context.Context) error {
 // punching mechanism work. This can consume a meaningful amount of file
 // descriptors, so be prepared to enlarge your limits.
 func (m *Listener) Accept() (net.Conn, error) {
-	if m.relayNew != nil {
-		conn, err := m.relayNew()
-		if err != nil {
-			m.log.Warn("failed to relay", zap.Error(err))
-			panic("fuck")
-		}
-
-		return conn, err
-	}
-
 	// Act as a listener if there is no puncher specified.
 	// Check for acceptor listenerChannel, if there is a connection - return immediately.
 	select {
@@ -177,6 +169,9 @@ func (m *Listener) Accept() (net.Conn, error) {
 		return conn.unwrap()
 	default:
 	}
+
+	timer := time.NewTimer(m.nppTimeout)
+	defer timer.Stop()
 
 	// Otherwise block when either a new connection arrives or NPP does its job.
 	for {
@@ -192,8 +187,25 @@ func (m *Listener) Accept() (net.Conn, error) {
 			} else {
 				return conn.unwrap()
 			}
+		case <-timer.C:
+			return m.connectViaRelay()
 		}
 	}
+}
+
+func (m *Listener) connectViaRelay() (net.Conn, error) {
+	m.log.Debug("connecting using relay")
+
+	if m.relayNew != nil {
+		conn, err := m.relayNew()
+		if err != nil {
+			m.log.Warn("failed to relay", zap.Error(err))
+		}
+
+		return conn, err
+	}
+
+	return nil, fmt.Errorf("no relay endpoints configured")
 }
 
 func (m *Listener) Close() error {
